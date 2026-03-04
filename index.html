@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Allisa SAT单词复习登记</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Microsoft YaHei, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      max-width: 550px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background-color: #f8f9fa;
+    }
+    .container {
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .title {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #333;
+      text-align: center;
+    }
+    #tips {
+      height: 24px;
+      line-height: 24px;
+      text-align: center;
+      margin: 10px 0;
+      color: #dc3545;
+      font-size: 14px;
+    }
+    .input-group {
+      margin: 15px 0;
+    }
+    .input-item {
+      margin: 8px 0;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      outline: none;
+      transition: border 0.3s;
+      text-transform: lowercase;
+    }
+    input[type="text"]:focus {
+      border-color: #0d6efd;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    button {
+      flex: 1;
+      min-width: 120px;
+      padding: 12px 0;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+      color: white;
+    }
+    .btn-submit {
+      background-color: #0d6efd;
+    }
+    .btn-submit:hover {
+      background-color: #0b5ed7;
+    }
+    .btn-export {
+      background-color: #198754;
+    }
+    .btn-export:hover {
+      background-color: #157347;
+    }
+    .btn-clear {
+      background-color: #dc3545;
+    }
+    .btn-clear:hover {
+      background-color: #bb2d3b;
+    }
+
+    /* 预览窗口样式 */
+    .preview-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    .preview-content {
+      background: white;
+      width: 90%;
+      max-width: 700px;
+      max-height: 80vh;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .preview-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+    .close-preview {
+      background: #dc3545;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+    }
+    .word-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .word-table th, .word-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    .word-table th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+    }
+    .preview-footer {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .preview-btn {
+      padding: 8px 16px;
+      font-size: 14px;
+      min-width: 80px;
+    }
+
+    /* 日期选择弹窗样式 */
+    .date-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 9998;
+      justify-content: center;
+      align-items: center;
+    }
+    .date-content {
+      background: white;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 8px;
+      padding: 25px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+    }
+    .date-header {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .date-desc {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 15px;
+      line-height: 1.5;
+    }
+    .date-input-group {
+      margin: 15px 0;
+    }
+    .date-input-item {
+      margin: 10px 0;
+    }
+    .date-input-item label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #333;
+    }
+    input[type="date"] {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      outline: none;
+      transition: border 0.3s;
+    }
+    input[type="date"]:focus {
+      border-color: #0d6efd;
+    }
+    .date-btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .date-btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 16px;
+      min-width: 80px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Allisa SAT单词复习登记</div>
+    <div id="tips"></div>
+
+    <div class="input-group">
+      <div class="input-item"><input type="text" placeholder="请输入单词1（仅字母）" id="w1" oninput="filterLettersAndToLower(this)"></div>
+      <div class="input-item"><input type="text" placeholder="请输入单词2（仅字母）" id="w2" oninput="filterLettersAndToLower(this)"></div>
+      <div class="input-item"><input type="text" placeholder="请输入单词3（仅字母）" id="w3" oninput="filterLettersAndToLower(this)"></div>
+      <div class="input-item"><input type="text" placeholder="请输入单词4（仅字母）" id="w4" oninput="filterLettersAndToLower(this)"></div>
+      <div class="input-item"><input type="text" placeholder="请输入单词5（仅字母）" id="w5" oninput="filterLettersAndToLower(this)"></div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-submit" onclick="submitWords()">提交</button>
+      <button class="btn-export" onclick="previewBeforeExport()">导出</button>
+      <button class="btn-clear" onclick="openDateModal()">清空</button>
+    </div>
+  </div>
+
+  <!-- 预览窗口 -->
+  <div class="preview-modal" id="previewModal">
+    <div class="preview-content">
+      <div class="preview-header">
+        <div class="preview-title">单词记录预览（按日期+首字母排序）</div>
+        <button class="close-preview" onclick="closePreview()">×</button>
+      </div>
+      <div id="previewTableContainer"></div>
+      <div class="preview-footer">
+        <button class="preview-btn btn-clear" onclick="closePreview()">取消</button>
+        <button class="preview-btn btn-export" onclick="exportData()">确认导出</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日期选择弹窗 -->
+  <div class="date-modal" id="dateModal">
+    <div class="date-content">
+      <div class="date-header">选择要清空的日期范围</div>
+      <div class="date-desc">
+        • 只选起始日期 → 清空 起始日期 ~ 至今 的记录<br>
+        • 只选截止日期 → 清空 最早 ~ 截止日期 的记录<br>
+        • 都选 → 清空 起始日期 ~ 截止日期 的记录<br>
+        • 都不选 → 清空全部记录
+      </div>
+      <div class="date-input-group">
+        <div class="date-input-item">
+          <label for="startDate">起始日期</label>
+          <input type="date" id="startDate" placeholder="选择起始日期">
+        </div>
+        <div class="date-input-item">
+          <label for="endDate">截止日期</label>
+          <input type="date" id="endDate" placeholder="选择截止日期">
+        </div>
+      </div>
+      <div class="date-btn-group">
+        <button class="date-btn btn-clear" onclick="closeDateModal()">取消</button>
+        <button class="date-btn btn-submit" onclick="confirmDateRange()">确认日期</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== 输入过滤：仅字母+自动小写 ==========
+    function filterLettersAndToLower(inputElement) {
+      const onlyLetters = inputElement.value.replace(/[^a-zA-Z]/g, '');
+      inputElement.value = onlyLetters.toLowerCase();
+    }
+
+    // ========== 核心工具函数 ==========
+    function getToday() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getData() {
+      const rawData = localStorage.getItem('wordList');
+      return rawData ? JSON.parse(rawData) : [];
+    }
+
+    function saveData(data) {
+      localStorage.setItem('wordList', JSON.stringify(data));
+    }
+
+    // 修复关键bug：positions > 1 → positions.length > 1
+    function checkDuplicate(words) {
+      const lowerWords = words.map(word => word.toLowerCase().trim());
+      const duplicateMap = {};
+      
+      lowerWords.forEach((word, index) => {
+        if (word) {
+          if (!duplicateMap[word]) duplicateMap[word] = [];
+          duplicateMap[word].push(`单词${index + 1}`);
+        }
+      });
+      return Object.entries(duplicateMap).filter(([_, positions]) => positions.length > 1);
+    }
+
+    function checkHistoryDuplicate(inputWords) {
+      const historyData = getData();
+      const historyWords = historyData.map(item => item.word.toLowerCase().trim());
+      const duplicateHistory = [];
+
+      inputWords.forEach(word => {
+        const cleanWord = word.toLowerCase().trim();
+        if (cleanWord && historyWords.includes(cleanWord) && !duplicateHistory.includes(cleanWord)) {
+          duplicateHistory.push(cleanWord);
+        }
+      });
+      return duplicateHistory;
+    }
+
+    // 计算待删除的记录数量
+    function calculateDeleteCount(startDate, endDate) {
+      const allData = getData();
+      let deleteCount = 0;
+      
+      if (!startDate && !endDate) {
+        deleteCount = allData.length;
+      } else if (startDate && !endDate) {
+        deleteCount = allData.filter(item => item.date >= startDate).length;
+      } else if (!startDate && endDate) {
+        deleteCount = allData.filter(item => item.date <= endDate).length;
+      } else {
+        deleteCount = allData.filter(item => item.date >= startDate && item.date <= endDate).length;
+      }
+      
+      return deleteCount;
+    }
+
+    // 按日期范围删除数据
+    function deleteWordsByDateRange(startDate, endDate) {
+      const allData = getData();
+      if (!startDate && !endDate) {
+        saveData([]);
+        return allData.length;
+      }
+      
+      const remainingData = allData.filter(item => {
+        const itemDate = item.date;
+        if (startDate && !endDate) {
+          return itemDate < startDate;
+        } else if (!startDate && endDate) {
+          return itemDate > endDate;
+        } else {
+          return itemDate < startDate || itemDate > endDate;
+        }
+      });
+      
+      const deletedCount = allData.length - remainingData.length;
+      saveData(remainingData);
+      return deletedCount;
+    }
+
+    // 数据排序函数
+    function sortWordData(data) {
+      return [...data].sort((a, b) => {
+        if (a.date < b.date) return -1;
+        if (a.date > b.date) return 1;
+        return a.word.localeCompare(b.word);
+      });
+    }
+
+    // ========== 预览功能 ==========
+    function previewBeforeExport() {
+      const wordList = getData();
+      const tips = document.getElementById('tips');
+
+      if (wordList.length === 0) {
+        tips.innerText = '暂无单词数据可导出！';
+        return;
+      }
+
+      const sortedData = sortWordData(wordList);
+      
+      let tableHtml = `
+        <table class="word-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>日期</th>
+              <th>单词</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      sortedData.forEach((item, index) => {
+        tableHtml += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.date}</td>
+            <td>${item.word}</td>
+          </tr>
+        `;
+      });
+      
+      tableHtml += `
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" style="text-align:center; font-weight:bold;">总计：${sortedData.length} 个单词</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+
+      document.getElementById('previewTableContainer').innerHTML = tableHtml;
+      document.getElementById('previewModal').style.display = 'flex';
+    }
+
+    function closePreview() {
+      document.getElementById('previewModal').style.display = 'none';
+    }
+
+    // ========== 导出功能 ==========
+    function exportData() {
+      const wordList = getData();
+      const tips = document.getElementById('tips');
+
+      const sortedData = sortWordData(wordList);
+
+      let tsvContent = `序号\t日期\t单词\n`;
+      sortedData.forEach((item, index) => {
+        tsvContent += `${index + 1}\t${item.date}\t${item.word}\n`;
+      });
+      tsvContent += `\n总计\t\t${sortedData.length} 个单词`;
+
+      const blob = new Blob([tsvContent], { type: 'application/vnd.ms-excel' });
+      const downloadLink = document.createElement('a');
+      downloadLink.href = URL.createObjectURL(blob);
+      downloadLink.download = `Allisa_SAT单词记录_${getToday()}.xls`;
+      downloadLink.click();
+      URL.revokeObjectURL(downloadLink.href);
+
+      closePreview();
+      tips.innerText = `导出成功！共导出 ${sortedData.length} 个单词`;
+    }
+
+    // ========== 提交单词 ==========
+    function submitWords() {
+      const today = getToday();
+      const wordList = getData();
+      const tips = document.getElementById('tips');
+
+      const hasSubmittedToday = wordList.some(item => item.date === today);
+      if (hasSubmittedToday) {
+        tips.innerText = '今日已提交过单词，不可重复提交！';
+        return;
+      }
+
+      const w1 = document.getElementById('w1').value.trim();
+      const w2 = document.getElementById('w2').value.trim();
+      const w3 = document.getElementById('w3').value.trim();
+      const w4 = document.getElementById('w4').value.trim();
+      const w5 = document.getElementById('w5').value.trim();
+      const inputWords = [w1, w2, w3, w4, w5];
+
+      if (inputWords.some(word => !word)) {
+        tips.innerText = '请填写完整5个单词，不能为空！';
+        return;
+      }
+
+      const duplicateWords = checkDuplicate(inputWords);
+      if (duplicateWords.length > 0) {
+        let errorMsg = '提交失败：存在重复单词！';
+        duplicateWords.forEach(([word, positions]) => {
+          errorMsg += ` ${positions.join('、')} 都是【${word}】；`;
+        });
+        tips.innerText = errorMsg.slice(0, -1);
+        return;
+      }
+
+      const historyDuplicate = checkHistoryDuplicate(inputWords);
+      if (historyDuplicate.length > 0) {
+        tips.innerText = `提交失败：单词【${historyDuplicate.join('、')}】已在历史记录中存在！`;
+        return;
+      }
+
+      const confirmContent = `请确认今日要提交的5个单词：
+1. ${w1}
+2. ${w2}
+3. ${w3}
+4. ${w4}
+5. ${w5}
+
+确认提交吗？`;
+      
+      if (!confirm(confirmContent)) {
+        tips.innerText = '已取消提交';
+        return;
+      }
+
+      const newWordItems = inputWords.map(word => ({ date: today, word }));
+      saveData([...wordList, ...newWordItems]);
+
+      tips.innerText = '提交成功！';
+      document.getElementById('w1').value = '';
+      document.getElementById('w2').value = '';
+      document.getElementById('w3').value = '';
+      document.getElementById('w4').value = '';
+      document.getElementById('w5').value = '';
+    }
+
+    // ========== 日期选择弹窗相关函数 ==========
+    function openDateModal() {
+      const tips = document.getElementById('tips');
+      tips.innerText = '请选择要清空的日期范围';
+      document.getElementById('dateModal').style.display = 'flex';
+      document.getElementById('startDate').value = getToday();
+      document.getElementById('endDate').value = getToday();
+    }
+
+    function closeDateModal() {
+      const tips = document.getElementById('tips');
+      tips.innerText = '已取消日期选择';
+      document.getElementById('dateModal').style.display = 'none';
+      document.getElementById('startDate').value = '';
+      document.getElementById('endDate').value = '';
+    }
+
+    function confirmDateRange() {
+      const tips = document.getElementById('tips');
+      const startDate = document.getElementById('startDate').value.trim();
+      const endDate = document.getElementById('endDate').value.trim();
+      
+      // 验证日期逻辑
+      if (startDate && endDate && startDate > endDate) {
+        tips.innerText = '日期选择错误！起始日期不能晚于截止日期';
+        alert('日期选择错误！起始日期不能晚于截止日期，请重新选择');
+        return;
+      }
+
+      // 先计算待删除记录数量
+      const deleteCount = calculateDeleteCount(startDate, endDate);
+      
+      // 无记录可删
+      if (deleteCount === 0) {
+        let tipMsg = '';
+        if (!startDate && !endDate) {
+          tipMsg = '暂无任何单词记录可清空！';
+        } else if (startDate && !endDate) {
+          tipMsg = `未找到 ${startDate} 及之后的单词记录！`;
+        } else if (!startDate && endDate) {
+          tipMsg = `未找到 ${endDate} 及之前的单词记录！`;
+        } else {
+          tipMsg = `未找到 ${startDate} ~ ${endDate} 之间的单词记录！`;
+        }
+        
+        alert(tipMsg);
+        tips.innerText = tipMsg;
+        return;
+      }
+
+      // 有记录可删，进入密码环节
+      document.getElementById('dateModal').style.display = 'none';
+      tips.innerText = '日期选择完成，请输入清空密码';
+      
+      setTimeout(() => {
+        const inputPwd = prompt('请输入清空数据的密码：');
+        
+        if (inputPwd === null) {
+          tips.innerText = '已取消清空操作';
+          setTimeout(openDateModal, 500);
+          return;
+        }
+
+        const pwd = inputPwd.trim();
+        if (pwd !== '8989') {
+          tips.innerText = '密码错误！清空失败';
+          setTimeout(openDateModal, 500);
+          return;
+        }
+
+        // 二次确认删除
+        let confirmMsg = '';
+        if (!startDate && !endDate) {
+          confirmMsg = `确认要清空全部 ${deleteCount} 个单词记录吗？\n删除后不可恢复！`;
+        } else if (startDate && !endDate) {
+          confirmMsg = `确认要清空 ${startDate} 及之后的 ${deleteCount} 个单词记录吗？\n删除后不可恢复！`;
+        } else if (!startDate && endDate) {
+          confirmMsg = `确认要清空 ${endDate} 及之前的 ${deleteCount} 个单词记录吗？\n删除后不可恢复！`;
+        } else {
+          confirmMsg = `确认要清空 ${startDate} ~ ${endDate} 之间的 ${deleteCount} 个单词记录吗？\n删除后不可恢复！`;
+        }
+
+        if (confirm(confirmMsg)) {
+          const deletedCount = deleteWordsByDateRange(startDate, endDate);
+          let successMsg = '';
+          if (!startDate && !endDate) {
+            successMsg = `成功清空全部 ${deletedCount} 个单词记录！`;
+          } else if (startDate && !endDate) {
+            successMsg = `成功清空 ${startDate} 及之后的 ${deletedCount} 个单词记录！`;
+          } else if (!startDate && endDate) {
+            successMsg = `成功清空 ${endDate} 及之前的 ${deletedCount} 个单词记录！`;
+          } else {
+            successMsg = `成功清空 ${startDate} ~ ${endDate} 之间的 ${deletedCount} 个单词记录！`;
+          }
+          tips.innerText = successMsg + ' 可重新提交对应日期的单词';
+        } else {
+          tips.innerText = '已取消清空操作';
+          setTimeout(openDateModal, 500);
+        }
+      }, 100);
+    }
+
+    // 点击弹窗外部关闭
+    window.onclick = function(event) {
+      const previewModal = document.getElementById('previewModal');
+      const dateModal = document.getElementById('dateModal');
+      
+      if (event.target === previewModal) {
+        closePreview();
+      }
+      if (event.target === dateModal) {
+        closeDateModal();
+      }
+    }
+  </script>
+</body>
+</html>
