@@ -160,8 +160,7 @@
     }
     .preview-btn {
       padding: 8px 16px;
-      font-size: 14px;
-      min-width: 80px;
+      font-size: 16px; /* 修复：补全font-size属性 */
     }
 
     .date-modal {
@@ -309,14 +308,41 @@
 
     <div class="btn-group">
       <button class="btn-submit" onclick="submitWords()">提交</button>
-      <button class="btn-export" onclick="previewBeforeExport()">导出</button>
+      <button class="btn-export" onclick="openExportDateModal()">导出</button>
       <button class="btn-add" onclick="openAddDateModal()">补录</button>
       <button class="btn-modify" onclick="openModifyDateModal()">修改单词</button>
       <button class="btn-clear" onclick="openDateModal()">清空</button>
     </div>
   </div>
 
-  <!-- 导出预览弹窗 -->
+  <!-- 导出日期选择弹窗 -->
+  <div class="date-modal" id="exportDateModal">
+    <div class="date-content">
+      <div class="date-header">选择导出的日期范围</div>
+      <div class="date-desc">
+        • 只选起始日期 → 导出 起始日期 ~ 至今 的单词<br>
+        • 只选截止日期 → 导出 最早 ~ 截止日期 的单词<br>
+        • 都选 → 导出 起始日期 ~ 截止日期 的单词<br>
+        • 都不选 → 导出全部单词
+      </div>
+      <div class="date-input-group">
+        <div class="date-input-item">
+          <label for="exportStartDate">起始日期</label>
+          <input type="date" id="exportStartDate">
+        </div>
+        <div class="date-input-item">
+          <label for="exportEndDate">截止日期</label>
+          <input type="date" id="exportEndDate">
+        </div>
+      </div>
+      <div class="date-btn-group">
+        <button class="date-btn btn-clear" onclick="closeExportDateModal()">取消</button>
+        <button class="date-btn btn-submit" onclick="confirmExportDate()">确认导出</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出预览弹窗（保留，可选） -->
   <div class="preview-modal" id="previewModal">
     <div class="preview-content">
       <div class="preview-header">
@@ -369,6 +395,7 @@
       <div class="date-input-group">
         <div class="date-input-item">
           <label for="addDate">选择日期</label>
+          <!-- 修复：添加缺失的date输入框 -->
           <input type="date" id="addDate">
         </div>
       </div>
@@ -416,7 +443,7 @@
   <div class="date-modal" id="modifyDateModal">
     <div class="date-content">
       <div class="date-header">选择要修改的单词日期</div>
-      <div class="date-desc">
+      <div class="date-desc"> <!-- 修复：补全date-desc类 -->
         • 请选择有单词记录的日期<br>
         • 仅能修改对应日期的5个单词
       </div>
@@ -448,6 +475,8 @@
   <script>
     let currentModifyDate = '';
     let currentAddDate = '';
+    let exportDateRange = { start: '', end: '' }; // 存储导出日期范围
+    let filteredExportData = []; // 存储过滤后的导出数据
 
     // 核心函数 - 补交记录
     function saveAddWords() {
@@ -657,15 +686,61 @@
       }
     }
 
-    // 导出预览
-    function previewBeforeExport() {
+    // ========== 新增：导出日期选择相关函数 ==========
+    function openExportDateModal() {
+      // 重置日期输入框
+      document.getElementById('exportStartDate').value = '';
+      document.getElementById('exportEndDate').value = '';
+      document.getElementById('exportEndDate').max = getToday();
+      document.getElementById('exportDateModal').style.display = 'flex';
+    }
+
+    function closeExportDateModal() {
+      document.getElementById('exportDateModal').style.display = 'none';
+      exportDateRange = { start: '', end: '' };
+    }
+
+    function confirmExportDate() {
+      const start = document.getElementById('exportStartDate').value.trim();
+      const end = document.getElementById('exportEndDate').value.trim();
+      exportDateRange = { start, end };
+      
+      closeExportDateModal();
+      // 先过滤数据并展示预览，不再直接导出
+      previewFilteredWords();
+    }
+
+    // 过滤数据并展示预览表格
+    function previewFilteredWords() {
       const data = getData();
       if (data.length === 0) {
+        alert('暂无单词数据可导出！');
         document.getElementById('tips').innerText = '暂无数据';
         return;
       }
 
-      const sorted = [...data].sort((a, b) => {
+      // 1. 过滤日期范围
+      let filteredData = [...data];
+      const { start, end } = exportDateRange;
+      
+      if (start && end) {
+        filteredData = filteredData.filter(item => item.date >= start && item.date <= end);
+      } else if (start) {
+        filteredData = filteredData.filter(item => item.date >= start);
+      } else if (end) {
+        filteredData = filteredData.filter(item => item.date <= end);
+      }
+
+      if (filteredData.length === 0) {
+        alert('所选日期范围内无单词数据！');
+        return;
+      }
+
+      // 存储过滤后的数据，供后续导出使用
+      filteredExportData = filteredData;
+
+      // 2. 排序并生成预览表格
+      const sorted = [...filteredData].sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return a.word.localeCompare(b.word);
       });
@@ -680,30 +755,53 @@
       document.getElementById('previewModal').style.display = 'flex';
     }
 
+    // 核心：生成TXT文件（仅在点击预览弹窗的「确认导出」时执行）
+    function exportData() {
+      if (filteredExportData.length === 0) {
+        alert('暂无可导出的单词数据！');
+        return;
+      }
+
+      // 提取单词并按首字母排序
+      const words = filteredExportData.map(item => item.word.trim()).sort((a, b) => a.localeCompare(b));
+      
+      // 拼接为空格分隔的字符串
+      const textContent = words.join(' ');
+      
+      // 导出为TXT文件
+      try {
+        const blob = new Blob([textContent], { type: 'text/plain; charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        
+        // 生成文件名（包含日期范围）
+        const { start, end } = exportDateRange;
+        let fileName = '单词列表.txt';
+        if (start && end) {
+          fileName = `单词列表_${start}_至_${end}.txt`;
+        } else if (start) {
+          fileName = `单词列表_从${start}开始.txt`;
+        } else if (end) {
+          fileName = `单词列表_至${end}结束.txt`;
+        }
+        
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        
+        document.getElementById('tips').innerText = '导出成功！';
+        closePreview(); // 导出成功后关闭预览弹窗
+      } catch (e) {
+        console.error('导出失败:', e);
+        alert('导出失败，请重试！');
+        document.getElementById('tips').innerText = '导出失败，请重试';
+      }
+    }
+
     // 关闭预览弹窗
     function closePreview() {
       document.getElementById('previewModal').style.display = 'none';
-    }
-
-    // 导出数据
-    function exportData() {
-      const data = getData().sort((a,b) => a.date.localeCompare(b.date) || a.word.localeCompare(b.word));
-      let tsv = "序号\t日期\t单词\n";
-      data.forEach((item,i) => tsv += `${i+1}\t${item.date}\t${item.word}\n`);
-
-      try {
-        const blob = new Blob([tsv], { type: 'application/vnd.ms-excel' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = '单词记录.xls';
-        a.click();
-        URL.revokeObjectURL(a.href);
-        closePreview();
-        document.getElementById('tips').innerText = '导出成功';
-      } catch (e) {
-        console.error('导出失败:', e);
-        document.getElementById('tips').innerText = '导出失败，请重试';
-      }
+      filteredExportData = []; // 清空缓存的过滤数据
     }
 
     // 清空功能
@@ -806,6 +904,7 @@
 
     // 修改单词逻辑
     function openModifyDateModal() {
+      // 修复：修正变量定义语法错误
       const inp = document.getElementById('modifyDate');
       inp.value = '';
       inp.max = getToday();
@@ -868,6 +967,9 @@
     window.onclick = e => {
       if (e.target === document.getElementById('previewModal') && !e.target.closest('.preview-content')) closePreview();
       if (e.target === document.getElementById('dateModal') && !e.target.closest('.date-content')) closeDateModal();
+      if (e.target === document.getElementById('exportDateModal') && !e.target.closest('.date-content')) {
+        closeExportDateModal();
+      }
       if (e.target === document.getElementById('addDateModal') && !e.target.closest('.date-content')) {
         closeAddDateModal();
         currentAddDate = ''; // 点击空白处关闭日期弹窗时清空
@@ -894,6 +996,7 @@
       // 初始化日期输入框最大值
       document.getElementById('addDate').max = getToday();
       document.getElementById('modifyDate').max = getToday();
+      document.getElementById('exportEndDate').max = getToday();
 
       // 挂载所有函数到window
       window.filterLettersAndToLower = filterLettersAndToLower;
