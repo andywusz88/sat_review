@@ -160,7 +160,7 @@
     }
     .preview-btn {
       padding: 8px 16px;
-      font-size: 16px; /* 修复：补全font-size属性 */
+      font-size: 16px;
     }
 
     .date-modal {
@@ -320,10 +320,10 @@
     <div class="date-content">
       <div class="date-header">选择导出的日期范围</div>
       <div class="date-desc">
-        • 只选起始日期 → 导出 起始日期 ~ 至今 的单词<br>
-        • 只选截止日期 → 导出 最早 ~ 截止日期 的单词<br>
-        • 都选 → 导出 起始日期 ~ 截止日期 的单词<br>
-        • 都不选 → 导出全部单词
+        • 起始日期 = 截止日期 → 只导出这一天<br>
+        • 只选起始 → 起始至今<br>
+        • 只选截止 → 最早到截止<br>
+        • 都不选 → 导出全部
       </div>
       <div class="date-input-group">
         <div class="date-input-item">
@@ -337,16 +337,16 @@
       </div>
       <div class="date-btn-group">
         <button class="date-btn btn-clear" onclick="closeExportDateModal()">取消</button>
-        <button class="date-btn btn-submit" onclick="confirmExportDate()">确认导出</button>
+        <button class="date-btn btn-submit" onclick="confirmExportDate()">确定</button>
       </div>
     </div>
   </div>
 
-  <!-- 导出预览弹窗（保留，可选） -->
+  <!-- 导出预览弹窗 -->
   <div class="preview-modal" id="previewModal">
     <div class="preview-content">
       <div class="preview-header">
-        <div class="preview-title">单词记录预览（按日期+首字母排序）</div>
+        <div class="preview-title">单词记录预览</div>
         <button class="close-preview" onclick="closePreview()">×</button>
       </div>
       <div id="previewTableContainer"></div>
@@ -362,10 +362,10 @@
     <div class="date-content">
       <div class="date-header">选择要清空的日期范围</div>
       <div class="date-desc">
-        • 只选起始日期 → 清空 起始日期 ~ 至今 的记录<br>
-        • 只选截止日期 → 清空 最早 ~ 截止日期 的记录<br>
-        • 都选 → 清空 起始日期 ~ 截止日期 的记录<br>
-        • 都不选 → 清空全部记录
+        • 只选起始 → 清空起始至今<br>
+        • 只选截止 → 清空最早到截止<br>
+        • 都选 → 清空区间<br>
+        • 都不选 → 清空全部
       </div>
       <div class="date-input-group">
         <div class="date-input-item">
@@ -395,7 +395,6 @@
       <div class="date-input-group">
         <div class="date-input-item">
           <label for="addDate">选择日期</label>
-          <!-- 修复：添加缺失的date输入框 -->
           <input type="date" id="addDate">
         </div>
       </div>
@@ -443,7 +442,7 @@
   <div class="date-modal" id="modifyDateModal">
     <div class="date-content">
       <div class="date-header">选择要修改的单词日期</div>
-      <div class="date-desc"> <!-- 修复：补全date-desc类 -->
+      <div class="date-desc">
         • 请选择有单词记录的日期<br>
         • 仅能修改对应日期的5个单词
       </div>
@@ -475,197 +474,105 @@
   <script>
     let currentModifyDate = '';
     let currentAddDate = '';
-    let exportDateRange = { start: '', end: '' }; // 存储导出日期范围
-    let filteredExportData = []; // 存储过滤后的导出数据
+    let exportDateRange = { start: '', end: '' };
+    let filteredExportData = [];
 
-    // 核心函数 - 补交记录
-    function saveAddWords() {
-      console.log('===== 补交记录按钮触发 =====');
-      console.log('当前补录日期:', currentAddDate);
-      
-      const tips = document.getElementById('tips');
-      tips.innerText = '';
-
-      // 1. 强制校验补录日期
-      if (!currentAddDate) {
-        const msg = "补交失败：日期无效，请重新选择";
-        alert(msg);
-        tips.innerText = msg;
-        console.error('currentAddDate为空');
-        return;
-      }
-
-      // 2. 强制获取输入框值
-      const w1 = document.getElementById('addWord1').value.trim();
-      const w2 = document.getElementById('addWord2').value.trim();
-      const w3 = document.getElementById('addWord3').value.trim();
-      const w4 = document.getElementById('addWord4').value.trim();
-      const w5 = document.getElementById('addWord5').value.trim();
-      
-      console.log('输入的单词:', [w1, w2, w3, w4, w5]);
-
-      const ws = [w1, w2, w3, w4, w5];
-
-      // 3. 调用验证函数，获取校验结果
-      const validateResult = validateAndSubmit(ws, currentAddDate);
-      
-      if (validateResult.success) {
-        // 校验通过，关闭弹窗+提示成功
-        closeAddWordModal();
-        tips.innerText = `${currentAddDate} 补交成功！`;
-        currentAddDate = ''; // 仅在提交成功后清空
-        console.log('补交成功');
-      } else {
-        // 校验失败，保留弹窗和日期变量
-        console.log('补交失败，验证未通过，保留输入弹窗');
-      }
-    }
-
-    // 统一的字母过滤函数
+    // 统一字母过滤
     function filterLettersAndToLower(inputElement) {
       inputElement.value = inputElement.value.replace(/[^a-zA-Z]/g, '').toLowerCase();
     }
 
-    // 获取今日日期（增加容错）
+    // 获取今日日期 YYYY-MM-DD
     function getToday() {
-      try {
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      } catch (e) {
-        console.error('获取今日日期失败:', e);
-        return '2026-03-08'; // 兜底日期
-      }
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
-    // 获取本地存储数据（增加容错）
+    // 本地存储
     function getData() {
       try {
         const raw = localStorage.getItem('wordList');
         return raw ? JSON.parse(raw) : [];
       } catch (e) {
-        console.error('读取本地存储失败:', e);
         return [];
       }
     }
-
-    // 保存数据到本地存储（增加容错）
     function saveData(data) {
-      try {
-        localStorage.setItem('wordList', JSON.stringify(data));
-        return true;
-      } catch (e) {
-        console.error('保存本地存储失败:', e);
-        alert('数据保存失败，请检查浏览器存储权限！');
-        return false;
-      }
+      localStorage.setItem('wordList', JSON.stringify(data));
     }
 
-    // 获取已存在的日期列表
+    // 已存在日期
     function getExistDates() {
       const data = getData();
       return [...new Set(data.map(item => item.date))];
     }
 
-    // 检查同一批单词内的重复
+    // 重复检查
     function checkDuplicate(words) {
-      const lowerWords = words.map(w => w.trim().toLowerCase());
-      const duplicateMap = {};
-      lowerWords.forEach((word, index) => {
-        if (word) {
-          if (!duplicateMap[word]) duplicateMap[word] = [];
-          duplicateMap[word].push(`单词${index + 1}`);
+      const lower = words.map(w => w.trim().toLowerCase());
+      const map = {};
+      lower.forEach((w, i) => {
+        if (w) {
+          if (!map[w]) map[w] = [];
+          map[w].push(`单词${i+1}`);
         }
       });
-      return Object.entries(duplicateMap).filter(([_, pos]) => pos.length > 1);
+      return Object.entries(map).filter(([_, p]) => p.length > 1);
     }
-
-    // 检查历史记录中的重复（排除当前日期）
-    function checkHistoryDuplicate(words, excludeDate = '') {
+    function checkHistoryDuplicate(words, excludeDate) {
       const data = getData();
-      const history = data
-        .filter(x => x.date !== excludeDate)
-        .map(x => x.word.trim().toLowerCase());
+      const hist = data.filter(x => x.date !== excludeDate).map(x => x.word.trim().toLowerCase());
       return words.filter(w => {
         const lw = w.trim().toLowerCase();
-        return lw && history.includes(lw);
+        return lw && hist.includes(lw);
       });
     }
 
-    // 通用验证和提交函数（核心优化：返回错误信息+是否保留弹窗）
+    // 通用提交验证
     function validateAndSubmit(words, targetDate) {
       const tips = document.getElementById('tips');
-      tips.innerText = ''; // 清空页面提示
-
-      // 1. 基础校验 - 日期无效
+      tips.innerText = '';
       if (!targetDate) {
-        const msg = '提交失败：日期无效';
-        alert(msg);
-        tips.innerText = msg;
-        return { success: false, keepModal: true };
+        alert('日期无效');
+        return { success: false };
       }
-
-      // 2. 基础校验 - 有空值
       if (words.some(w => !w.trim())) {
-        const msg = '请填写5个单词，不能为空！';
-        alert(msg);
-        tips.innerText = msg;
-        return { success: false, keepModal: true };
+        alert('请填写5个单词');
+        return { success: false };
       }
-
-      // 3. 校验1：同批单词重复
       const dup = checkDuplicate(words);
       if (dup.length > 0) {
-        let msg = '提交失败：单词重复：\n';
-        dup.forEach(([w, pos]) => {
-          msg += ` - ${pos.join('、')}都是【${w}】\n`;
-        });
+        let msg = '单词重复：\n';
+        dup.forEach(([w, pos]) => msg += ` - ${pos.join('、')}：${w}\n`);
         alert(msg);
-        tips.innerText = msg.replace(/\n/g, ' ');
-        return { success: false, keepModal: true };
+        return { success: false };
       }
-
-      // 4. 校验2：历史记录重复
       const hist = checkHistoryDuplicate(words, targetDate);
       if (hist.length > 0) {
-        const msg = `提交失败：以下单词已存在于历史记录中：\n【${hist.join('、')}】`;
-        alert(msg);
-        tips.innerText = msg;
-        return { success: false, keepModal: true };
+        alert(`历史已存在：${hist.join('、')}`);
+        return { success: false };
       }
-
-      // 5. 所有校验通过，确认提交
       if (!confirm(`确认提交到 ${targetDate}？\n` + words.join('\n'))) {
         tips.innerText = '已取消';
-        return { success: false, keepModal: true };
+        return { success: false };
       }
-
-      // 6. 保存数据
       const old = getData().filter(x => x.date !== targetDate);
       const items = words.map(w => ({ date: targetDate, word: w.trim() }));
-      if (saveData([...old, ...items])) {
-        return { success: true, keepModal: false };
-      } else {
-        const msg = '提交失败：数据保存出错，请检查浏览器存储权限！';
-        alert(msg);
-        tips.innerText = msg;
-        return { success: false, keepModal: true };
-      }
+      saveData([...old, ...items]);
+      return { success: true };
     }
 
-    // 提交今日单词
+    // 提交今日
     function submitWords() {
       const today = getToday();
       const data = getData();
-      const tips = document.getElementById('tips');
-
       if (data.some(x => x.date === today)) {
-        tips.innerText = '今日已提交';
+        document.getElementById('tips').innerText = '今日已提交';
         return;
       }
-
       const ws = [
         document.getElementById('w1').value,
         document.getElementById('w2').value,
@@ -673,74 +580,60 @@
         document.getElementById('w4').value,
         document.getElementById('w5').value
       ];
-
-      const validateResult = validateAndSubmit(ws, today);
-      if (validateResult.success) {
-        // 清空输入框
+      const res = validateAndSubmit(ws, today);
+      if (res.success) {
         document.getElementById('w1').value = '';
         document.getElementById('w2').value = '';
         document.getElementById('w3').value = '';
         document.getElementById('w4').value = '';
         document.getElementById('w5').value = '';
-        tips.innerText = '提交成功';
+        document.getElementById('tips').innerText = '提交成功';
       }
     }
 
-    // ========== 新增：导出日期选择相关函数 ==========
+    // ====================== 导出逻辑（已修复）======================
     function openExportDateModal() {
-      // 重置日期输入框
       document.getElementById('exportStartDate').value = '';
       document.getElementById('exportEndDate').value = '';
-      document.getElementById('exportEndDate').max = getToday();
       document.getElementById('exportDateModal').style.display = 'flex';
     }
-
     function closeExportDateModal() {
       document.getElementById('exportDateModal').style.display = 'none';
-      exportDateRange = { start: '', end: '' };
     }
 
     function confirmExportDate() {
       const start = document.getElementById('exportStartDate').value.trim();
       const end = document.getElementById('exportEndDate').value.trim();
       exportDateRange = { start, end };
-      
       closeExportDateModal();
-      // 先过滤数据并展示预览，不再直接导出
       previewFilteredWords();
     }
 
-    // 过滤数据并展示预览表格
+    // 真正按日期筛选：选哪天就只显示哪天
     function previewFilteredWords() {
       const data = getData();
       if (data.length === 0) {
-        alert('暂无单词数据可导出！');
-        document.getElementById('tips').innerText = '暂无数据';
+        alert('暂无单词');
         return;
       }
-
-      // 1. 过滤日期范围
-      let filteredData = [...data];
       const { start, end } = exportDateRange;
-      
+      let filtered = [...data];
+
       if (start && end) {
-        filteredData = filteredData.filter(item => item.date >= start && item.date <= end);
+        filtered = filtered.filter(item => item.date >= start && item.date <= end);
       } else if (start) {
-        filteredData = filteredData.filter(item => item.date >= start);
+        filtered = filtered.filter(item => item.date >= start);
       } else if (end) {
-        filteredData = filteredData.filter(item => item.date <= end);
+        filtered = filtered.filter(item => item.date <= end);
       }
 
-      if (filteredData.length === 0) {
-        alert('所选日期范围内无单词数据！');
+      if (filtered.length === 0) {
+        alert('该日期无单词');
         return;
       }
 
-      // 存储过滤后的数据，供后续导出使用
-      filteredExportData = filteredData;
-
-      // 2. 排序并生成预览表格
-      const sorted = [...filteredData].sort((a, b) => {
+      filteredExportData = filtered;
+      const sorted = [...filtered].sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return a.word.localeCompare(b.word);
       });
@@ -750,61 +643,32 @@
         html += `<tr><td>${i+1}</td><td>${item.date}</td><td>${item.word}</td></tr>`;
       });
       html += `</table>`;
-
       document.getElementById('previewTableContainer').innerHTML = html;
       document.getElementById('previewModal').style.display = 'flex';
     }
 
-    // 核心：生成TXT文件（仅在点击预览弹窗的「确认导出」时执行）
     function exportData() {
       if (filteredExportData.length === 0) {
-        alert('暂无可导出的单词数据！');
+        alert('无可导出数据');
         return;
       }
-
-      // 提取单词并按首字母排序
       const words = filteredExportData.map(item => item.word.trim()).sort((a, b) => a.localeCompare(b));
-      
-      // 拼接为空格分隔的字符串
-      const textContent = words.join(' ');
-      
-      // 导出为TXT文件
-      try {
-        const blob = new Blob([textContent], { type: 'text/plain; charset=utf-8' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        
-        // 生成文件名（包含日期范围）
-        const { start, end } = exportDateRange;
-        let fileName = '单词列表.txt';
-        if (start && end) {
-          fileName = `单词列表_${start}_至_${end}.txt`;
-        } else if (start) {
-          fileName = `单词列表_从${start}开始.txt`;
-        } else if (end) {
-          fileName = `单词列表_至${end}结束.txt`;
-        }
-        
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        
-        document.getElementById('tips').innerText = '导出成功！';
-        closePreview(); // 导出成功后关闭预览弹窗
-      } catch (e) {
-        console.error('导出失败:', e);
-        alert('导出失败，请重试！');
-        document.getElementById('tips').innerText = '导出失败，请重试';
-      }
+      const text = words.join(' ');
+      const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '单词列表.txt';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      closePreview();
     }
 
-    // 关闭预览弹窗
     function closePreview() {
       document.getElementById('previewModal').style.display = 'none';
-      filteredExportData = []; // 清空缓存的过滤数据
+      filteredExportData = [];
     }
 
-    // 清空功能
+    // ====================== 清空 ======================
     function openDateModal() {
       document.getElementById('dateModal').style.display = 'flex';
     }
@@ -814,124 +678,81 @@
     function confirmDateRange() {
       const start = document.getElementById('startDate').value;
       const end = document.getElementById('endDate').value;
-      const data = getData();
-      let filteredData = [];
-
+      let data = getData();
       if (start && end) {
-        filteredData = data.filter(item => item.date < start || item.date > end);
+        data = data.filter(item => item.date < start || item.date > end);
       } else if (start) {
-        filteredData = data.filter(item => item.date < start);
+        data = data.filter(item => item.date < start);
       } else if (end) {
-        filteredData = data.filter(item => item.date > end);
+        data = data.filter(item => item.date > end);
       } else {
-        filteredData = []; // 清空全部
+        data = [];
       }
-
-      if (confirm('确认清空所选范围的记录？')) {
-        saveData(filteredData);
+      if (confirm('确认清空？')) {
+        saveData(data);
         document.getElementById('tips').innerText = '清空成功';
-      } else {
-        document.getElementById('tips').innerText = '已取消清空';
       }
       closeDateModal();
     }
 
-    // 补录逻辑 - 打开日期选择
+    // ====================== 补录 ======================
     function openAddDateModal() {
-      const inp = document.getElementById('addDate');
-      inp.value = '';
-      inp.max = getToday();
+      document.getElementById('addDate').max = getToday();
       document.getElementById('addDateModal').style.display = 'flex';
     }
-    
-    // 修复：移除延迟清空逻辑，仅关闭弹窗
     function closeAddDateModal() {
       document.getElementById('addDateModal').style.display = 'none';
     }
-
-    // 补录逻辑 - 确认日期
     function confirmAddDate() {
-      const sel = document.getElementById('addDate').value.trim();
+      const sel = document.getElementById('addDate').value;
       const today = getToday();
-      const tips = document.getElementById('tips');
-      tips.innerText = '';
-
-      // 校验日期
-      if (!sel) { 
-        alert('请选择补录日期'); 
-        return; 
-      }
-
-      // 时间戳比较
-      const selDate = new Date(sel);
-      const todayDate = new Date(today);
-      selDate.setHours(0, 0, 0, 0);
-      todayDate.setHours(0, 0, 0, 0);
-      
-      if (selDate >= todayDate) { 
-        alert('只能选择今天之前的日期进行补录'); 
-        return; 
-      }
-
-      // 检查日期是否已存在
-      if (getExistDates().includes(sel)) { 
-        alert('该日期已有单词记录，无法重复补录'); 
-        return; 
-      }
-
-      // 保存当前补录日期（关键：确保变量有效）
+      if (!sel) { alert('请选日期'); return; }
+      if (sel >= today) { alert('只能选今天之前'); return; }
+      if (getExistDates().includes(sel)) { alert('该日期已有记录'); return; }
       currentAddDate = sel;
       closeAddDateModal();
-      
-      // 重置补录输入框并打开弹窗
       document.getElementById('addWord1').value = '';
       document.getElementById('addWord2').value = '';
       document.getElementById('addWord3').value = '';
       document.getElementById('addWord4').value = '';
       document.getElementById('addWord5').value = '';
-      document.getElementById('addWordHeader').innerText = `补录 ${currentAddDate} 的单词`;
+      document.getElementById('addWordHeader').innerText = `补录 ${sel} 的单词`;
       document.getElementById('addWordModal').style.display = 'flex';
     }
-
-    // 修复：移除延迟清空逻辑，仅在取消时清空日期
     function closeAddWordModal() {
       document.getElementById('addWordModal').style.display = 'none';
-      // 仅在点击取消按钮时清空（通过事件来源判断）
-      if (event && event.target && event.target.textContent === '取消') {
+    }
+    function saveAddWords() {
+      const ws = [
+        document.getElementById('addWord1').value,
+        document.getElementById('addWord2').value,
+        document.getElementById('addWord3').value,
+        document.getElementById('addWord4').value,
+        document.getElementById('addWord5').value
+      ];
+      const res = validateAndSubmit(ws, currentAddDate);
+      if (res.success) {
+        closeAddWordModal();
+        document.getElementById('tips').innerText = `${currentAddDate} 补录成功`;
         currentAddDate = '';
       }
     }
 
-    // 修改单词逻辑
+    // ====================== 修改 ======================
     function openModifyDateModal() {
-      // 修复：修正变量定义语法错误
-      const inp = document.getElementById('modifyDate');
-      inp.value = '';
-      inp.max = getToday();
+      document.getElementById('modifyDate').max = getToday();
       document.getElementById('modifyDateModal').style.display = 'flex';
     }
     function closeModifyDateModal() {
       document.getElementById('modifyDateModal').style.display = 'none';
     }
     function confirmModifyDate() {
-      const sel = document.getElementById('modifyDate').value.trim();
-      if (!sel) { 
-        alert('请选择要修改的日期'); 
-        return; 
-      }
-
+      const sel = document.getElementById('modifyDate').value;
+      if (!sel) { alert('请选日期'); return; }
       const items = getData().filter(x => x.date === sel);
-      if (items.length !== 5) { 
-        alert('该日期无有效单词记录，无法修改'); 
-        return; 
-      }
-
+      if (items.length !== 5) { alert('该日期无有效记录'); return; }
       currentModifyDate = sel;
       closeModifyDateModal();
-      openModifyModal(items);
-    }
-
-    function openModifyModal(items) {
       let html = '';
       items.forEach((it, i) => {
         html += `
@@ -943,68 +764,35 @@
       document.getElementById('modifyWordContainer').innerHTML = html;
       document.getElementById('modifyModal').style.display = 'flex';
     }
-
     function closeModifyModal() {
       document.getElementById('modifyModal').style.display = 'none';
       currentModifyDate = '';
     }
-
     function saveModifiedWords() {
       const ws = [];
       for (let i=0; i<5; i++) {
-        const el = document.getElementById(`m${i}`);
-        ws.push(el ? el.value.trim() : '');
+        ws.push(document.getElementById(`m${i}`).value.trim());
       }
-
-      const validateResult = validateAndSubmit(ws, currentModifyDate);
-      if (validateResult.success) {
+      const res = validateAndSubmit(ws, currentModifyDate);
+      if (res.success) {
         closeModifyModal();
         document.getElementById('tips').innerText = '修改成功';
       }
     }
 
-    // 优化模态框点击关闭逻辑
+    // 点击空白关闭
     window.onclick = e => {
-      if (e.target === document.getElementById('previewModal') && !e.target.closest('.preview-content')) closePreview();
-      if (e.target === document.getElementById('dateModal') && !e.target.closest('.date-content')) closeDateModal();
-      if (e.target === document.getElementById('exportDateModal') && !e.target.closest('.date-content')) {
-        closeExportDateModal();
-      }
-      if (e.target === document.getElementById('addDateModal') && !e.target.closest('.date-content')) {
-        closeAddDateModal();
-        currentAddDate = ''; // 点击空白处关闭日期弹窗时清空
-      }
-      if (e.target === document.getElementById('addWordModal') && !e.target.closest('.word-content')) {
-        closeAddWordModal();
-        currentAddDate = ''; // 点击空白处关闭补录弹窗时清空
-      }
-      if (e.target === document.getElementById('modifyDateModal') && !e.target.closest('.date-content')) closeModifyDateModal();
-      if (e.target === document.getElementById('modifyModal') && !e.target.closest('.word-content')) closeModifyModal();
+      if (e.target.id === 'previewModal') closePreview();
+      if (e.target.id === 'dateModal') closeDateModal();
+      if (e.target.id === 'exportDateModal') closeExportDateModal();
+      if (e.target.id === 'addDateModal') closeAddDateModal();
+      if (e.target.id === 'addWordModal') closeAddWordModal();
+      if (e.target.id === 'modifyDateModal') closeModifyDateModal();
+      if (e.target.id === 'modifyModal') closeModifyModal();
     };
 
-    // 页面加载完成后绑定事件
-    window.onload = function() {
-      // 绑定补交记录按钮事件
-      const saveBtn = document.getElementById('saveAddBtn');
-      if (saveBtn) {
-        saveBtn.addEventListener('click', saveAddWords);
-        console.log('补交记录按钮事件绑定成功');
-      } else {
-        console.error('未找到补交记录按钮元素！');
-      }
-
-      // 初始化日期输入框最大值
-      document.getElementById('addDate').max = getToday();
-      document.getElementById('modifyDate').max = getToday();
-      document.getElementById('exportEndDate').max = getToday();
-
-      // 挂载所有函数到window
-      window.filterLettersAndToLower = filterLettersAndToLower;
-      window.getToday = getToday;
-      window.getData = getData;
-      window.saveData = saveData;
-      window.validateAndSubmit = validateAndSubmit;
-      window.saveAddWords = saveAddWords;
+    window.onload = function () {
+      document.getElementById('saveAddBtn').onclick = saveAddWords;
     };
   </script>
 </body>
